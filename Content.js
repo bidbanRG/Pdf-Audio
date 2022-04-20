@@ -17,8 +17,6 @@ export default function Content(){
     const [AT,setAT] = useState(0);
     let INDEX = AT;
  
-
-       
      useEffect(() => {
         if(IsDone){
        
@@ -55,7 +53,7 @@ export default function Content(){
              "one file is already selected",
              "press cancel to remove it",
           [{
-            text:'got it',
+               text:'got it',
 
          }]);
          
@@ -76,7 +74,7 @@ export default function Content(){
 
 
   const getAudio = async () => {
-        const url = 'https://pdf-text-server.herokuapp.com/post';
+        const url = 'https://salty-lake-75892.herokuapp.com/post';
         const formData = new FormData();
         const xhr = new XMLHttpRequest();
         const headers = {
@@ -109,7 +107,7 @@ export default function Content(){
  
   const play = () => {
       
-       console.log('play',INDEX); 
+        
        Speech.speak(TEXT.substring(INDEX,upper),{
            rate:1,
            onStart:() => setPlaying(true),
