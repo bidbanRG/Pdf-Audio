@@ -15,6 +15,7 @@ export default function Content(){
     const [upper,setupper] = useState(3000);                      
     const [Allow,setAllow] = useState(true);
     const [AT,setAT] = useState(0);
+    
     let INDEX = AT;
  
      useEffect(() => {
@@ -29,17 +30,6 @@ export default function Content(){
       
     
   
-                      
-        let INTERVAL = setInterval(()=>{
-            
-            if(Playing) {
-             
-               INDEX++;
-            }
-       
-        },95)
- 
-
       
   
 
@@ -74,7 +64,7 @@ export default function Content(){
 
 
   const getAudio = async () => {
-        const url = 'https://salty-lake-75892.herokuapp.com/post';
+        const url = 'https://rn-pdf-text.herokuapp.com/post';
         const formData = new FormData();
         const xhr = new XMLHttpRequest();
         const headers = {
@@ -87,13 +77,15 @@ export default function Content(){
                    name:PDF.name || PDF.fileName
             
             })
-  
+
          xhr.addEventListener('load', ()=>{
-             let text = xhr._response.replace(/\n/g, "");
+             let text = xhr.response.replace(/\n/g, "");
             
-          
-             setText(text);
-             console.log(text)
+              let arr = xhr.response.split(',');
+              console.log(arr);
+             setText(arr);
+
+             
              setAllow(false);
 
          })
@@ -103,20 +95,24 @@ export default function Content(){
         xhr.send(formData);
       
 };
+const [Index,setIndex] = useState(0);
+ useEffect(() => {
+      if(!TEXT) return;
+      const Say = (Words) => {
+        if(Playing){ 
+         Speech.speak(Words);
+         console.log('Hello');
+        }
+      }
+    console.log(Index);
+    const tr = setTimeout(Say(TEXT[Index]), 2000);
+    if(Playing) setIndex(Index + 1);
+    return () => clearTimeout(tr); 
 
+}, [Playing,Index])
  
-  const play = () => {
+const play = () => {setPlaying(true);} 
       
-        
-       Speech.speak(TEXT.substring(INDEX,upper),{
-           rate:1,
-           onStart:() => setPlaying(true),
-           onStopped:() => setPlaying(false),
-           onDone:() => setIsDone(true)
-           
-        });
-      
-  }
 
   const back = () => {  // backward
      stop();
@@ -143,10 +139,10 @@ export default function Content(){
   }
   const stop = () => {
     
-     clearInterval(INTERVAL);
-     setAT(INDEX);
-     setAT(AT + Math.abs(AT - INDEX));
-     console.log(AT,INDEX);
+     // clearInterval(INTERVAL);
+     // setAT(INDEX);
+     // setAT(AT + Math.abs(AT - INDEX));
+     // console.log(AT,INDEX);
      Speech.stop();
      setPlaying(false);
      
