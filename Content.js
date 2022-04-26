@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View, ImageBackground,TouchableOpacity, Platform, Button, Alert} from 'react-native';
+
+import { StyleSheet, Text, View, ImageBackground,TouchableOpacity, Platform, Button, Alert, TextInput} from 'react-native';
 import {useState,useEffect,useContext} from 'react';
+import Loader from './Loader';
 import axios from 'axios';
 import {IndexContext} from './SpeakContext'
 import * as Speech from 'expo-speech'; 
@@ -7,31 +9,160 @@ import * as DocumentPicker from 'expo-document-picker';
 const backImg = require('./assets/back.gif');
 export default function Content(){
     
+    
+   const {PAGES,setPAGES} = useContext(IndexContext);
+
+
     const [PDF,setPDF] = useState(null);
     const [TEXT,setText] = useState(null);
     const [Playing,setPlaying] = useState(false);
     const [IsDone,setIsDone] = useState(false);
-    const [lower,setlower] = useState(0);
-    const [upper,setupper] = useState(3000);                      
     const [Allow,setAllow] = useState(true);
-    const [AT,setAT] = useState(0);
-    
-    let INDEX = AT;
+    const [Index,setIndex] = useState(0);
+    const [Onstart,setOnstart] = useState(false);
+    const [Page,setPage] = useState(1);
+    const [res,setres] = useState(null);    
+    const [Pause,setPause] = useState(false);
+    const [Load,setLoad] = useState(false);
+   const [error,setError] = useState(false);  
+  
  
-     useEffect(() => {
-        if(IsDone){
-       
-       setlower(upper);
-       setupper(upper + 3000);
-       play();
-       setIsDone(false);
+      
+ 
+
+  if(error){
+
+          Alert.alert(
+             "Something went wrong...",
+            "check your internet connections....",
+             
+          [{
+               text:'Ok',
+
+         }]);
+          setError(false);
   }
-     },[IsDone])  
-      
     
-  
+  useEffect(() => {
+     
+     setPage(1);
+
+  },[PDF])
+
+  useEffect(() => {
+
+  if(Playing && TEXT){
+ 
+   if(!IsDone){
+    if(Pause && res){
+      Speech.speak(res,{rate:0.9,
+        onDone:() => {
+            setOnstart(false)
+            setIsDone(true)
+        },
+        onStart:()=>setOnstart(true)}); 
+      setPause(false);
+    }
+else{
+       
       
+      let text = TEXT.slice(Index ,Index + 20).join(' ').replace(/"|u000|/gm,'');
+      setres(text);
+      
+
+     if(text.length === 0){
+    
+    
+     setIndex(0);
+     setOnstart(false);
+    
+    
+      setres(null);
+      setPlaying(false);
+      setPause(false);
+
+         Alert.alert(
+             "You have completed this page",
+             "Congratulations",
+          [{
+               text:'Ok',
+
+         }]);
+    
+        Speech.stop();
+    
+    
+     return;
+
+     }
+
+
+     
+    Speech.speak(text,{rate:0.9,
+        onDone:() => {
+            setOnstart(false)
+            setIsDone(true)
+        },
+        onStart:()=>setOnstart(true)});
+      
+    }
+  }
+    
+
+    if(IsDone) {
+        setIndex(Index + 20);
+        setIsDone(false);
+      }
   
+}
+  },[Playing,IsDone,Index])
+    
+ 
+const play = () => {
+    setPlaying(true);
+} 
+      
+
+  const back = () => {  // backward
+    if(!Playing) return;  
+    if(Index - 20 < 0) return;
+     Speech.stop();
+     setPlaying(false);
+     setIndex(Math.max(Index - 20,0));
+     setPlaying(true);
+
+
+ }
+
+  const skip = () => { // forward
+    if(!Playing) return;  
+    Speech.stop();
+    setPlaying(false);
+    setIndex(Index + 20);
+    setPlaying(true);
+ }
+
+ const cancel = () => { 
+    Speech.stop();
+    setPDF(null);
+    setAllow(true);
+    setText(null);
+    
+    setIndex(0);
+    setOnstart(false);
+    setPage(1)
+    
+    setres(null);
+    setPlaying(false);
+    setPause(false);
+  }
+  const pause = () => {
+    if(!Playing) return;  
+     Speech.stop();
+     setPlaying(false);
+     setPause(true);
+     
+  }
 
 
   
@@ -64,7 +195,9 @@ export default function Content(){
 
 
   const getAudio = async () => {
-        const url = 'https://rn-pdf-text.herokuapp.com/post';
+
+    setLoad(true);
+        const url = `https://server-pdf-to-audio.herokuapp.com/post/${Page}`;
         const formData = new FormData();
         const xhr = new XMLHttpRequest();
         const headers = {
@@ -74,93 +207,131 @@ export default function Content(){
                     
                    uri: Platform.OS === 'android' ? PDF.uri : PDF.uri.replace('file://', ''),
                    type:'application/pdf',
-                   name:PDF.name || PDF.fileName
+                   name:PDF.name || PDF.fileName,
+                   
             
             })
 
          xhr.addEventListener('load', ()=>{
-             let text = xhr.response.replace(/\n/g, "");
-            
-              let arr = xhr.response.split(',');
-              console.log(arr);
-             setText(arr);
-
              
-             setAllow(false);
+              let arr = xhr.response.split(',');
+           
 
-         })
-     
+               if(arr[0] === '[]') {
+                console.log(arr);
+                           Alert.alert(
+                        "No more Page Found",
+                     "You have completed the PDF",
+                   [{
+                       text:'Ok',
+
+                   }]);
+
+                Speech.stop();
+                setPlaying(false);
+                setText(null);
+                setres(null);
+                setOnstart(false);
+                setIndex(0);
+                setPause(false);
+                setIsDone(false);
+                setPage(Page - 1);
+                setLoad(false);
+            
+               }
+             else{  
+              if(arr === 'Server got no PDF'){
+
+                   Alert.alert(
+                     "Something went wrong try again",
+                     
+                   [{
+                   text:'Ok',
+
+              }]);
+                   
+                   setText(null);
+                    return;
+              }
+              
+              setText(arr);
+              
+              setAllow(false);
+             setLoad(false);
+         }
+
+ })
+
+
+
+xhr.onerror = function (e) {
+  setLoad(false);
+  setError(true);
+};
+        
         xhr.open('POST',url,true);
         xhr.setRequestHeader('Content-Type','multipart/form-data');
         xhr.send(formData);
       
 };
-const [Index,setIndex] = useState(0);
- useEffect(() => {
-      if(!TEXT) return;
-      const Say = (Words) => {
-        if(Playing){ 
-         Speech.speak(Words);
-         console.log('Hello');
-        }
-      }
-    console.log(Index);
-    const tr = setTimeout(Say(TEXT[Index]), 2000);
-    if(Playing) setIndex(Index + 1);
-    return () => clearTimeout(tr); 
 
-}, [Playing,Index])
- 
-const play = () => {setPlaying(true);} 
-      
 
-  const back = () => {  // backward
-     stop();
-    setAT(Math.max(AT - 300,lower));
-    play(); 
-  }
-
-  const skip = () => { // forward
-    stop();
-    setAT(Math.min(AT + 300,upper));
-    play();
-  }
-
-  const cancel = () => { 
-    setPDF(null);
-    setAllow(true);
-    setText(null);
-    setlower(0);
-    setupper(3000);
-    clearInterval(INTERVAL);
-    setAT(0);
+const prev = () => {
+  
+    if(Page - 1 > 0) {
     Speech.stop();
     setPlaying(false);
-  }
-  const stop = () => {
+    setText(null);
+    setres(null);
+    setOnstart(false);
+    setIndex(0);
+    setPause(false);
+    setIsDone(false);
+    setPage(Page - 1);
+   }
+}
+
+const next = () => {
+
+  
     
-     // clearInterval(INTERVAL);
-     // setAT(INDEX);
-     // setAT(AT + Math.abs(AT - INDEX));
-     // console.log(AT,INDEX);
-     Speech.stop();
-     setPlaying(false);
-     
-  }
+    Speech.stop();
+    setPlaying(false);
+   setText(null);
+    setres(null);
+    setOnstart(false);
+    setIndex(0);
+    setPause(false);
+    setIsDone(false);
+    setPage(Page + 1);   
+}
+
 
   return(
       <View style = {styles.content}> 
+      {Load && <Loader/>}
           <ImageBackground source = {backImg} style = {styles.image}>
+
+           { !Onstart && !res ? 
               <TouchableOpacity  style = {styles.input} onPress = {handleFile}> 
                    <Text style = {styles.text}> { PDF ? PDF.name.slice(0,11) + "...." : "Select Pdf" }</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> : <View/>
+          }
             {
-                PDF && !TEXT ?              
+                PDF && !TEXT  && !res ?              
                <TouchableOpacity style = {styles.getaudio} onPress = {getAudio}>
                     <Text style = {styles.audiotext}> Get Audio </Text>
-               </TouchableOpacity> :
-                <View/>
-            }
+               </TouchableOpacity> :  <View/>
+          }
+        
+            
+            { Onstart ? 
+                <View style = {styles.res}>
+                <Text style = {styles.audioText}> { res + '........'} </Text> 
+                </View>
+                : <View/>}   
+            
+
             {
                 TEXT ?
             <View>
@@ -168,7 +339,7 @@ const play = () => {setPlaying(true);}
                   <TouchableOpacity style = {styles.option} onPress = {play}>
                     <Text style = {styles.option_text}> play </Text>
                </TouchableOpacity> 
-                 <TouchableOpacity style = {styles.option} onPress = {stop}>
+                 <TouchableOpacity style = {styles.option} onPress = {pause}>
                     <Text style = {styles.option_text}> pause </Text>
                </TouchableOpacity> 
                  <TouchableOpacity style = {styles.option}  onPress = {cancel}>
@@ -177,20 +348,38 @@ const play = () => {setPlaying(true);}
                  </View>
                  
                  <View style = {styles.rewind}>
-                    
-                     <TouchableOpacity style = {styles.forward} onPress = {back}> 
+                     
+
+                                         
+                      <TouchableOpacity style = {styles.forward} onPress = {back}> 
                          <Text style = {styles.option_text}>  back </Text>
                      </TouchableOpacity>
                      
                      <TouchableOpacity style = {styles.backward} onPress = {skip}> 
                         <Text style = {styles.option_text}> skip </Text>
                      </TouchableOpacity>
+                     
+
+                      
                  </View>
-         
+                 
+                 
+                     
+                   
           </View> 
                  :
                  <View/> 
             }
+
+            {  PDF ?
+
+                <View style = {styles.PAGE} onPress = {back}> 
+                          <Text style = {styles.optionText} onPress = {prev}>  {'<'}  </Text>
+                         <Text style = {styles.optionText}>  Page { Page  } </Text>
+                         <Text style = {styles.optionText} onPress = {next}>  {'>'}  </Text>
+                  </View> : <View/>
+            }
+          
           </ImageBackground>
        </View>
 
@@ -204,16 +393,49 @@ const styles = StyleSheet.create({
     flex : 1,
    
 },
+optionText:{
+   fontWeight:'bold',
+  textAlign:'center',
+  color:'white',
+  fontWeight:'bold',
+  fontSize:18,
+  color:'crimson'
+},
+PAGE:{
+   marginTop:10,
+   marginLeft:'auto',
+   marginRight:'auto',
+   display:'flex',
+   flexDirection:'row',
+   justifyContent:"space-around",
+   alignItems:"center",
+   backgroundColor:'black',
+   height:40,
+   width:150,
+   borderRadius:7
+},
+audioText:{
+  fontWeight:'bold',
+  textAlign:'center',
+  color:'white',
+  fontWeight:'bold',
+  
+
+},
 options:{
   display:'flex',
   flexDirection:'row',
   marginTop:10,
   width:250,
-  justifyContent:'space-around'
+  marginLeft:'auto',
+  marginRight:'auto',
+  justifyContent:'space-around',
+  alignItems:'center'
 },
 option_text:{
   color:'crimson',
-  fontWeight:'bold'
+  fontWeight:'bold',
+ 
 },
 rewind:{
 
@@ -290,7 +512,11 @@ option:{
     alignItems:'center',
     borderRadius:27
   },
-   audiotext:{
+  res:{
+    width:'95%'
+},
+
+audiotext:{
     
     color:'crimson',
     fontWeight:'bold',

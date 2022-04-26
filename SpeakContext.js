@@ -5,11 +5,11 @@ const IndexContext = React.createContext();
 
  const IndexProvider = ({children}) => {
 
-  const [INDEX,setINDEX] = useState(0);
+  const [PAGES,setPAGES] = useState({});
 
 
 return(
-    <IndexContext.Provider value = {{INDEX,setINDEX}}>
+    <IndexContext.Provider value = {{PAGES,setPAGES}}>
        {children}
     </IndexContext.Provider>
   )
