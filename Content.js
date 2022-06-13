@@ -10,21 +10,21 @@ const backImg = require('./assets/back.gif');
 export default function Content(){
     
     
-   const {PAGES,setPAGES} = useContext(IndexContext);
+   
 
 
-    const [PDF,setPDF] = useState(null);
-    const [TEXT,setText] = useState(null);
-    const [Playing,setPlaying] = useState(false);
-    const [IsDone,setIsDone] = useState(false);
-    const [Allow,setAllow] = useState(true);
-    const [Index,setIndex] = useState(0);
-    const [Onstart,setOnstart] = useState(false);
-    const [Page,setPage] = useState(1);
-    const [res,setres] = useState(null);    
+    const [PDF,setPDF] = useState(null); //the selected pdf file
+    const [TEXT,setText] = useState(null); //contains the whole text of the page 
+    const [Playing,setPlaying] = useState(false); 
+    const [IsDone,setIsDone] = useState(false); // to check whether speaker is done or not 
+    const [Allow,setAllow] = useState(true); // allowing to select files
+    const [Index,setIndex] = useState(0); // index of the word of the TEXT
+    const [Onstart,setOnstart] = useState(false); //to check whether speaker just start or not 
+    const [Page,setPage] = useState(1); // which page of the pdf files
+    const [res,setres] = useState(null); // which paragraph the speaker is speaking   
     const [Pause,setPause] = useState(false);
     const [Load,setLoad] = useState(false);
-   const [error,setError] = useState(false);  
+    const [error,setError] = useState(false);  
   
  
       
@@ -51,9 +51,10 @@ export default function Content(){
 
   useEffect(() => {
 
-  if(Playing && TEXT){
+  if(Playing && TEXT){ // if in playing state and words are still left
  
-   if(!IsDone){
+   if(!IsDone){  // if the paragraph is not completed yet then check whether the user pressed
+                 // pause button or not
     if(Pause && res){
       Speech.speak(res,{rate:0.9,
         onDone:() => {
@@ -67,10 +68,12 @@ else{
        
       
       let text = TEXT.slice(Index ,Index + 20).join(' ').replace(/"|u000|/gm,'');
+        // selecting every 20 words and showing it on screen...
+        // expo-speech module doesn't support resume functionalities :(
       setres(text);
       
 
-     if(text.length === 0){
+     if(text.length === 0){ //Handling actions after text in the page is finished
     
     
      setIndex(0);
@@ -97,8 +100,8 @@ else{
      }
 
 
-     
-    Speech.speak(text,{rate:0.9,
+     //if text is not finished keep speaking 
+    Speech.speak(text,{rate:0.8,
         onDone:() => {
             setOnstart(false)
             setIsDone(true)
@@ -109,7 +112,7 @@ else{
   }
     
 
-    if(IsDone) {
+    if(IsDone) {// go for next 20 words
         setIndex(Index + 20);
         setIsDone(false);
       }
@@ -184,6 +187,7 @@ const play = () => {
 
        let result = await DocumentPicker.getDocumentAsync({ type: "application/pdf" });
        console.log(result.type);
+
        if(result.type === 'success'){
          setPDF(result);
       }
@@ -195,9 +199,9 @@ const play = () => {
 
 
   const getAudio = async () => {
-
+//https://pdf-audio.herokuapp.com/post
     setLoad(true);
-        const url = `https://server-pdf-to-audio.herokuapp.com/post/${Page}`;
+        const url = `https://server-pdf-to-text.herokuapp.com/post/${Page}`;
         const formData = new FormData();
         const xhr = new XMLHttpRequest();
         const headers = {
@@ -211,17 +215,38 @@ const play = () => {
                    
             
             })
-
+         //console.log(PDF);
+        formData.append(PDF);  
+     
+         
+          
          xhr.addEventListener('load', ()=>{
              
               let arr = xhr.response.split(',');
            
+               if(arr[0] === 'NOPAGES'){// if page number is more than the total pages
+                   Alert.alert(
+                        "Page Limit Exceeded",
+                     "No more Pages Found",
+                   [{
+                       text:'Ok',
 
-               if(arr[0] === '[]') {
+                   }]);
+                    Speech.stop();
+                    setPlaying(false);
+                    setText(null);
+                    setres(null);
+                    setOnstart(false);
+                    setIndex(0);
+                    setPause(false);
+                    setIsDone(false);
+                    setLoad(false);
+               }
+               else if(arr[0] === '[]') { // if the page contains some images or non-text elements
                 console.log(arr);
                            Alert.alert(
-                        "No more Page Found",
-                     "You have completed the PDF",
+                        "No text found in this Page",
+                     "This page may contain some images or non-text element",
                    [{
                        text:'Ok',
 
@@ -235,12 +260,11 @@ const play = () => {
                 setIndex(0);
                 setPause(false);
                 setIsDone(false);
-                setPage(Page - 1);
                 setLoad(false);
             
                }
              else{  
-              if(arr === 'Server got no PDF'){
+              if(arr[0] === 'Server-got-no-PDF'){ // maybe some connection issues
 
                    Alert.alert(
                      "Something went wrong try again",
@@ -256,13 +280,24 @@ const play = () => {
               
               setText(arr);
               
+              
               setAllow(false);
              setLoad(false);
          }
 
  })
 
+ // try{
+   
+ //   console.log(formData);
+ //    await axios.post(url,formData,headers);
+ //   setLoad(false);
+ //   console.log(2);
 
+ // }
+ // catch(err){
+ //    console.log(err);
+ // }
 
 xhr.onerror = function (e) {
   setLoad(false);
@@ -276,7 +311,7 @@ xhr.onerror = function (e) {
 };
 
 
-const prev = () => {
+const prev = () => { //next page
   
     if(Page - 1 > 0) {
     Speech.stop();
@@ -291,7 +326,7 @@ const prev = () => {
    }
 }
 
-const next = () => {
+const next = () => { // previous page
 
   
     
@@ -312,20 +347,20 @@ const next = () => {
       {Load && <Loader/>}
           <ImageBackground source = {backImg} style = {styles.image}>
 
-           { !Onstart && !res ? 
+           { !Onstart && !res ? // when no pdf is choosen
               <TouchableOpacity  style = {styles.input} onPress = {handleFile}> 
                    <Text style = {styles.text}> { PDF ? PDF.name.slice(0,11) + "...." : "Select Pdf" }</Text>
               </TouchableOpacity> : <View/>
           }
             {
-                PDF && !TEXT  && !res ?              
+                PDF && !TEXT  && !res ? // after selecting pdf, getting text from the server             
                <TouchableOpacity style = {styles.getaudio} onPress = {getAudio}>
                     <Text style = {styles.audiotext}> Get Audio </Text>
                </TouchableOpacity> :  <View/>
           }
         
             
-            { Onstart ? 
+            { Onstart ? // showing the speaking part
                 <View style = {styles.res}>
                 <Text style = {styles.audioText}> { res + '........'} </Text> 
                 </View>
@@ -333,10 +368,10 @@ const next = () => {
             
 
             {
-                TEXT ?
-            <View>
-                 <View style = {styles.options}>
-                  <TouchableOpacity style = {styles.option} onPress = {play}>
+                TEXT ? // After Text got fetched handling the button functionalities (pause,play etc)
+            <View> 
+                 <View style = {styles.options}> 
+                  <TouchableOpacity style = {styles.option} onPress = {play}> 
                     <Text style = {styles.option_text}> play </Text>
                </TouchableOpacity> 
                  <TouchableOpacity style = {styles.option} onPress = {pause}>

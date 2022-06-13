@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Bidisha_Audio",
+    "name": "Pdf Audio",
     "slug": "Bidisha_Audio",
+    "privacy": "public",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
