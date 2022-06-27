@@ -186,14 +186,23 @@ const play = () => {
      try{
 
        let result = await DocumentPicker.getDocumentAsync({ type: "application/pdf" });
-       console.log(result.type);
+       
 
        if(result.type === 'success'){
          setPDF(result);
       }
      }
      catch(err) {
-      console.error(err)
+        setError(true);
+        Speech.stop();
+        setPlaying(false);
+        setText(null);
+        setres(null);
+        setOnstart(false);
+        setIndex(0);
+        setPause(false);
+        setIsDone(false);
+        setLoad(false);
     }
   }
 
